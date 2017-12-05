@@ -1,0 +1,203 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="../bower_components/iron-list/iron-list.html">
+<link rel="import" href="../bower_components/iron-image/iron-image.html">
+<link rel="import" href="../bower_components/paper-spinner/paper-spinner.html">
+<link rel="import" href="../bower_components/iron-scroll-threshold/iron-scroll-threshold.html">
+<link rel="lazy-import" href="user.html">
+<dom-module id="bs-user-list">
+
+    <template>
+        <style>
+             :host {
+                display: block;
+                /* min-height: 100vh; */
+            }
+
+            
+        .loadingIndicator {
+          text-align: center;
+          height: 40px;
+        }
+        paper-spinner {
+          width: 20px;
+          height: 20px;
+          margin-right: 10px;
+        }
+        iron-list {
+          padding-bottom: 16px;
+          --iron-list-items-container: {
+            max-width: 800px;
+            margin: auto;
+            margin-top: 20px;
+            margin-bottom: 10px;
+          };
+        }
+        .userItem {
+            @apply --layout-horizontal;
+            padding: 20px;
+            background-color: white;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .userItem:focus, .primary:focus{
+			outline: 0 !important;
+        }
+
+        .avatar {
+          height: 40px;
+          width: 40px;
+          border-radius: 20px;
+          box-sizing: border-box;
+          background-color: #DDD;
+        }
+        .pad {
+          padding: 0 16px;
+          @apply --layout-flex;
+          @apply --layout-vertical;
+        }
+        .primary {
+          font-size: 16px;
+          font-weight: bold;
+        }
+        .shortText{
+            font-size:14px;
+        }
+        
+        </style>
+
+        <app-location route="{{route}}" url-space-regex="^[[rootPath]]">
+        </app-location>
+        <app-route route="{{route}}" pattern="/user-list" active="{{userListView}}">
+        <app-route route="{{route}}" pattern="/user-list/user/:userId" active="{{userView}}" data="{{routeData}}"></app-route>
+
+        <iron-ajax id="ajax" url="[[API_URL]]/profileslist/[[uid]]" handle-as="json" loading="{{loadingPeople}}"
+        on-response="_didRespond" headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}'></iron-ajax>
+        
+        
+        <iron-pages role="main" selected="[[page]]" attr-for-selected="id" selected-attribute="visible">
+            <div id="user-list">    
+                <iron-list id="list" items="[[peoples]]" scroll-target="document">
+                    <template>
+                        <div>
+                            <div class="userItem" tabindex$="[[tabIndex]]" on-tap="viewUser">
+                                <iron-image class="avatar" sizing="contain" src="[[_checkImageExits(item)]]"></iron-image>
+                                <div class="pad">
+                                    <div class="primary">[[item.displayName]]</div>
+                                    <div class="shortText">Sample bio</div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </iron-list>
+                <div class="loadingIndicator">
+                    <paper-spinner active="{{loadingPeople}}"></paper-spinner>
+                </div>
+                <iron-scroll-threshold id="scrollTheshold" lower-threshold="10" on-lower-threshold="_load" scroll-target="document"></iron-scroll-threshold>
+            </div>
+            <bs-user id="user" user-uid="{{routeData.userId}}"></bs-user>
+        </iron-pages>        
+    </template>
+
+
+    <script>
+        class UserList extends Polymer.Element {
+            static get is() {
+                return 'bs-user-list'
+            };
+            static get properties() {
+                return {
+                    API_URL: {
+                        type: String,
+                        value: window.Global.API_URL
+                    },
+                    token: {
+                        type: String,
+                        value: localStorage.getItem('token')
+                    },
+                    uid: {
+                        type: String,
+                        value: localStorage.getItem('uid')
+                    },
+                    peoples:{
+                        type:Object
+                    },
+                    page: {
+                        type: String,
+                        value: 'user-list'
+                    },
+                    
+                    userUid:String
+                }
+            }
+
+            static get observers() {
+				return [
+					'_routePageChanged(userListView, userView)',
+				];
+			}
+
+			_routePageChanged(userListView, userView) {
+                if(!userListView || userView === undefined) return;
+                if (userListView) {
+                    this._load();
+                    this.page='user-list';
+                } 
+                if(userView) {
+                    this.page = "user";
+                    this.dispatchEvent(new CustomEvent('toolbar-settings', {
+                        detail: {
+                            title: 'Profile',
+                            backpage:'user-list'
+                        },
+                        bubbles: true,
+                        composed: true
+                    }));
+                    this._loadPage('user');
+
+                }                
+            }
+
+            ready() {
+                super.ready();
+            }
+
+            _loadPage(page){
+                var resolvedPageUrl = this.resolveUrl(page + '.html');
+				Polymer.importHref(resolvedPageUrl,null,null,true);
+            }
+
+            _load() {
+                this.$.ajax.generateRequest();
+            }
+
+            _checkImageExits(item){
+                if(item.photoURL) return item.photoURL;
+                else return '/images/user-placeholder.jpg';
+            }
+
+            _didRespond(e) {
+                var people = e.detail.response.profiles;
+                this.peoples = people;
+                // people.forEach(function (person) {
+                //     this.$.list.push('items', person);
+                // }, this);
+                //this.$.scrollTheshold.clearTriggers();
+            }
+
+            viewUser(e){
+                var uid = this.userUid = e.model.item.uid;
+                this.set('route.path','/user-list/user/'+uid);
+            }
+
+
+        }
+
+        window.customElements.define(UserList.is, UserList);
+    </script>
+
+
+
+</dom-module>

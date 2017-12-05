@@ -1,0 +1,454 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-tabs/paper-tabs.html">
+<link rel="import" href="../bower_components/iron-pages/iron-pages.html">
+<link rel="import" href="../bower_components/app-layout/app-toolbar/app-toolbar.html">
+<link rel="import" href="../bower_components/paper-fab/paper-fab.html">
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="../bower_components/paper-listbox/paper-listbox.html">
+<link rel="import" href="../bower_components/paper-listbox/paper-listbox.html">
+<link rel="import" href="../bower_components/paper-item/paper-icon-item.html">
+<link rel="import" href="../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../bower_components/paper-item/paper-item-body.html">
+<link rel="import" href="../bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="../bower_components/paper-radio-group/paper-radio-group.html">
+<link rel="import" href="../bower_components/paper-radio-button/paper-radio-button.html">
+<link rel="import" href="shared-styles.html">
+<dom-module id="bs-home">
+
+    <template>
+        <style include="shared-styles">
+             :host {
+                display: block;
+                background: #efefef;
+                min-height: 100vh;
+            }
+
+            paper-tabs {
+                background: var(--default-primary-color);
+                height: 40px;
+                border-top: solid 1px #BDBDBD;
+                --paper-tabs-container: {
+                    background: var(--default-primary-color);
+                    color: var(--text-primary-color);
+                }
+                --paper-tabs-selection-bar: {
+                    border-bottom: 3px solid #FEC106 !important;
+                }   
+            }
+
+            paper-item {
+                background-color: var(--text-primary-color);
+                color: var(--primary-text-color);
+                border-bottom: solid 1px #BDBDBD;
+                /* margin-top: 10px;
+                border-top: solid 1px #B0BEC5; */
+            }
+
+            app-toolbar {
+                background:  var(--default-primary-color);
+                height: 40px;
+                color: white;
+                font-size: 14px;
+                border-top: solid 1px #BDBDBD;
+            }
+
+            h2{
+                border-bottom: solid 1px black;
+                line-height: 45px;
+                margin-top: 0px;
+            }
+
+            paper-radio-button{
+                display: block;
+            }
+
+            .noProblemsText {
+                text-align: center;
+                position: absolute;
+                top: 55%;
+                width: 100%;
+            }
+
+            .noProblemsText>p {
+                margin: 0px;
+            }
+
+            paper-icon-button.white{
+                color:white;
+            }
+
+            paper-fab {
+                position: fixed;
+                bottom: 0;
+                right: 0;
+                margin: 15px;
+                background:var(--accent-color);
+            }
+            .date{
+                font-size: 11px;
+                position: absolute;
+                right: 4px;
+                font-weight: bold;
+                bottom: -5px;
+            }
+
+            paper-spinner-lite.custom{
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                z-index: 1000;
+                width: 50px;
+                height: 50px;
+                margin-left: -25px;
+                margin-top: -25px;
+            }
+
+            paper-tab{
+                font-size: 12px;   
+            }
+            paper-tabs{  
+                --paper-tabs-selection-bar_-_border-bottom: 3px solid #4CAF50 !important;
+            }          
+        </style>
+
+        <iron-ajax id='getProblems' method="GET" url="[[API_URL]]/problems/[[uid]]/{{selected}}" handle-as="json" headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}'
+            on-response="_handleResponse" on-error="errorHandler" loading="{{loading}}"></iron-ajax>
+        <iron-ajax id='updateFavourite' method="put" url="[[API_URL]]/problem/updateFavourite" handle-as="json" headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}'
+        on-response="_handleUpdateFavourite" on-error="errorHandler" loading="{{loading}}"></iron-ajax>
+          
+                        
+            <paper-tabs selected="{{selected}}" attr-for-selected="name" >
+                <paper-tab name="my">{{localize('MyBUMPS')}}</paper-tab>
+                <paper-tab name="individual">{{localize('Individual')}}</paper-tab>
+                <paper-tab name="local">{{localize('Local')}}</paper-tab>
+                <paper-tab name="national">{{localize('National')}}</paper-tab>
+                <paper-tab name="global">{{localize('Global')}}</paper-tab>
+                <paper-tab name="all">{{localize('All')}}</paper-tab>
+            </paper-tabs>
+
+            <app-toolbar>
+                <div main-title>
+                    {{count}} {{localize('Items')}}
+                </div>
+                    <template is="dom-repeat" id="button" items="[[icons]]">
+                    <paper-icon-button class="white" id="[[item]]" icon="app-icons:[[item]]" on-tap="onTapOption"></paper-icon-button>
+                    </template>
+            </app-toolbar>     
+
+            <div id="{{selected}}">           
+                    <div class="noProblemsText" hidden$="[[hidden]]">
+                        <p>{{localize('You have no problems!')}}</p>
+                        <p>{{localize('Really')}}?</p>
+                    </div>
+        
+                    <div role="listbox">
+                        <template is="dom-repeat" id="roles" items="[[problems]]"  filter="{{_applyFliter(filterOption)}}" observe="filterOption type" sort="{{_sort(sortOption)}}">
+                            <paper-item >
+                                <paper-item-body two-line on-tap="_onProblemTap">
+                                    <div>
+                                       <span >[[item.title]]</span> 
+                                       
+                                    </div>
+                                    <div secondary>
+                                        [[item.description]]
+                                        <!-- <span class="date">[[convertDate(item)]]</span> -->
+                                    </div>
+                                </paper-item-body>
+                                <paper-icon-button icon="app-icons:[[_getFavIcon(item)]]" style="color:#ef9a9a;" alt="favourite this!" on-tap="makeFavourite"></paper-icon-button>
+                              
+                            </paper-item>
+                        </template>
+                    </div>
+                    <paper-fab mini icon="app-icons:add"  on-tap="loadProblemPage"></paper-fab>
+                </div>
+        </app-header-layout>
+        
+        <paper-dialog id="dialog" on-iron-overlay-closed="_onClosed">
+            <h2> 
+            <iron-icon icon="app-icons:[[dialogIcon]]"></iron-icon>
+            [[getDynamicLocalize(dialogTitle)]]</h2>
+            <paper-radio-group selected="" attr-for-selected="name">
+                <template is="dom-repeat" items="[[options]]">
+                    <paper-radio-button name="[[item.value]]" on-tap="onRadioSelect">[[getDynamicLocalize(item.label)]]</paper-radio-button>    
+                </template>
+            </paper-radio-group>
+        </paper-dialog>
+        <paper-spinner-lite class="custom" active="{{loading}}"></paper-spinner-lite>
+        <paper-toast id="toast" text="[[toastMsg]]"></paper-toast>
+
+    </template>
+    <script>
+        class Home extends Polymer.mixinBehaviors([Polymer.AppLocalizeBehavior], Polymer.Element) {
+            constructor() {
+                super();
+            }
+            static get is() {
+                return 'bs-home';
+            }
+            static get properties() {
+                return {
+                    visible: Boolean,
+                    selected: {
+                        type: String,
+                        value: 'my',
+                        observer: '_onTabChanged'
+                    },
+                    hidden: {
+                        type: Boolean,
+                        value: true
+                    },
+                    token: {
+                        type: String,
+                        value: localStorage.getItem('token')
+                    },
+                    uid: {
+                        type: String,
+                        value: localStorage.getItem('uid')
+                    },
+                    route: Object,
+                    API_URL: {
+                        type: String,
+                        value: window.Global.API_URL
+                    },
+                    count: {
+                        type: Number,
+                        value: 0,
+                        notify: true
+                    },
+                    icons:{
+                        type:Array,
+                        value:["search","share", "swap-vert", "tune"]
+                    },
+                    dialogTitle:String,
+                    dialogIcon:String,
+                    options:Array,
+                    sortOptions:{
+                        type:Array,
+                        value:[
+                                {value:'a-z',label:'A-Z'},
+                               {value:'z-a',label:'Z-A'},
+                               {value:'date',label:'Last Updated'}
+                            ]
+                    },
+                    filterOptions:{
+                        type:Array,
+                        value:[
+                                {"value":'all',"label":"All"},
+                               {"value":'my','label':'MyBumps'},
+                               {"value":'createdByUser','label':'Created (by Me)'},
+                               {"value":'editedByUser','label':'Edited (by Me)'}
+                            ]
+                    },
+                    sortOption:String,
+                    filterOption:{
+                        type:String,
+                        notify:true
+                    },
+                    dialogOpened:Boolean,
+                    radioOption:String,
+                    toastMsg:String     
+                }
+            } 
+            
+            static get observers(){
+                return [
+                    '_onActive(visible)'
+                ]
+            }
+            
+            _onActive(visible){
+                if(visible && !this._isTabActivated){
+                    this._load();
+                }
+                this._isTabActivated = false;
+            }
+
+            _onTabChanged(val) {
+               if(val){
+                   this._isTabActivated = true;
+                   this._load();
+               }
+            }
+
+            _onClosed(){
+                this.dialogOpened = false;
+            }
+            
+            _getFavIcon(item){
+                return item.favourite.indexOf(this.uid) > -1 ? 'favorite' : 'favorite-border'
+            }
+
+            getDynamicLocalize(string){
+                return this.localize(string);
+            }
+
+            _load() {
+                this.$.getProblems.generateRequest();
+            }
+
+            _handleResponse(e) {
+                this.problems = e.detail.response.problems;
+                this.count = this.problems.length;
+                this.hidden = (this.count > 0 || this.selected == 'all') ? true : false;
+            }
+
+            _onProblemTap(e){
+                if(this.dialogOpened) {
+                    this.dialogOpened = false;
+                    this.$.dialog.close();
+                    return;
+                }
+                var problemId = e.model.item._id;
+                this.set('route.path', 'problem/info/'+problemId);    
+            }
+
+            loadProblemPage() {
+                
+                this.set('route.path', 'problem/add');
+            }
+
+            errorHandler(e){
+                console.log(e);
+            }
+
+            onTapOption(e){
+                var type = e.srcElement.id;
+                switch (type) {
+                    case 'share':
+                        this.share();
+                        break;
+                    case 'swap-vert':
+                        this.sort();
+                        break;
+                    case 'tune':
+                        this.filter();
+                        break;
+                }
+            }
+
+            share(){
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'BumpScout',
+                        text: 'Solve your problems',
+                        url: 'https://bumpscout-c2d7d.firebaseapp.com/home',
+                    })
+                        .then(() => console.log('Successful share'))
+                        .catch((error) => console.log('Error sharing', error));
+                }else{
+                    document.location.href="mailto:?subject=Bump Scout Problem &body=Solve this problem "+"https://bumpscout-c2d7d.firebaseapp.com/home" +" BUMSCOUPT- Problem Solving App";
+                }
+            }
+
+            makeFavourite(e){
+                var data = {};
+                var icon = e.srcElement.icon.split(':')[1];
+                icon == 'favorite' ?  data.isFavourite = false : data.isFavourite = true;;
+                data._id = e.model.item._id;
+                data.uid = this.uid;
+                this.$.updateFavourite.body = data;
+                this.$.updateFavourite.generateRequest();
+            }
+
+            _handleUpdateFavourite(e){
+                if(e.detail.response.success){
+                    var msg = this.localize(e.detail.response.msg);
+                    document.getElementById('main').$.successToast.show(msg);
+                    this._load();
+                }
+            }
+
+            sort(){
+                this.options = this.sortOptions;
+                this.dialogIcon =  'swap-vert';
+                this.dialogTitle ='Sort'
+                this.dialogOpened =true;
+                this.$.dialog.open();
+            }
+
+            filter(){
+                this.options = this.filterOptions;
+                this.dialogIcon =  'tune';
+                this.dialogTitle ='Filter'
+                this.$.dialog.open();
+            }
+
+            _applyFliter(type){
+                var self = this;
+                switch(type) {
+					case 'all':
+                        return function(item) {
+                            return item;
+                        }
+					case 'my':
+                        return function(item) {
+                            return item.favourite.indexOf(self.uid)>-1;
+                        }
+                    case 'createdByUser':
+                        return function(item) {
+                            return item.uid == self.uid;
+                        };
+                    case 'editedByUser':
+                        return function(item) {
+                            return item.editedBy == self.uid;
+                        };
+				}
+            }
+
+            _sort(val){
+				switch(val) {
+					case 'a-z':
+					return function(a, b) {
+						if (a.title.toLowerCase() === b.title.toLowerCase()) return 0;
+						return a.title.toLowerCase() < b.title.toLowerCase() ? -1 : 1;
+					};
+					case 'z-a':
+					return function(a, b) {
+						if (a.title.toLowerCase() === b.title.toLowerCase()) return 0;
+						return a.title.toLowerCase() < b.title.toLowerCase() ? 1 : -1;
+                    };
+                    case 'date':
+                    return function(a, b) {
+						if (new Date(a.updatedAt) === new Date(b.updatedAt)) return 0;
+						return new Date(a.updatedAt) < new Date(b.updatedAt) ? 1 : -1;
+                    };
+				}
+            }
+            
+            onRadioSelect(e){
+                var value = e.model.item.value;
+                var type = this.dialogIcon
+                switch (type) {
+                    case 'swap-vert':
+                        this.sortOption = value;
+                        break;
+                    case 'tune':
+                        this.filterOption = value;
+                        break;
+                }
+            }
+
+            convertDate(item){
+                var updatedAt = item.updatedAt;
+                if(!updatedAt) return '';
+                var dateFormat = new Date(updatedAt),
+                    date = dateFormat.getDate(), 
+                    month = "January,February,March,April,May,June,July,August,September,October,November,December"
+                .split(",")[dateFormat.getMonth()]
+                function nth(d) {
+                if(d>3 && d<21) return 'th'; 
+                switch (d % 10) {
+                        case 1:  return "st";
+                        case 2:  return "nd";
+                        case 3:  return "rd";
+                        default: return "th";
+                    }
+                } 
+                return date+nth(date) +" "+month+" "+dateFormat.getFullYear();
+            }
+        }
+
+        window.customElements.define(Home.is, Home);
+    </script>
+
+</dom-module>

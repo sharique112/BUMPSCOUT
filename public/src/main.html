@@ -1,0 +1,311 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/app-route/app-location.html">
+<link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/iron-pages/iron-pages.html">
+<link rel="import" href="../bower_components/iron-selector/iron-selector.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-app.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-auth.html">
+<link rel="import" href="../bower_components/paper-toast/paper-toast.html">
+<link rel="import" href="../bower_components/paper-spinner/paper-spinner-lite.html">
+<script src="../bower_components/moment/min/moment-with-locales.min.js"></script>
+<link rel="import" href="../bower_components/app-localize-behavior/app-localize-behavior.html">
+<link rel="import" href="shared-styles.html">
+<link rel="import" href="icons.html">
+<link rel="lazy-import" href="login.html">
+<link rel="lazy-import" href="app.html">
+<link rel="lazy-import" href="forgot-password.html">
+<link rel="lazy-import" href="terms-privacy.html">
+<link rel="lazy-import" href="auth-action.html">
+
+<dom-module id="bs-main">
+    <template>
+        <style>
+             :host {
+                display: block;
+            }
+            
+            paper-toast.error{
+                --paper-toast-background-color:#D60000;
+            }
+
+            paper-spinner-lite.custom{
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                z-index: 1000;
+                width: 50px;
+                height: 50px;
+                margin-left: -25px;
+                margin-top: -25px;
+            }
+        </style>
+
+        <firebase-app id="app" auth-domain="[[firebase.authDomain]]" database-url="[[firebase.databaseURL]]" storage-bucket="[[firebase.storageBucket]]" api-key="[[firebase.apiKey]]"></firebase-app>
+        <firebase-auth user="{{user}}" id="auth" signed-in="{{signedIn}}" status-known="{{statusKnown}}"></firebase-auth>
+        <app-location route="{{route}}" url-space-regex="^[[rootPath]]"></app-location>
+        <app-route route="{{route}}" pattern="[[rootPath]]:page" data="{{routeData}}" tail="{{subroute}}">
+        <iron-pages selected="[[page]]" attr-for-selected="name" fallback-selection="login" role="main" selected-attribute="visible" >
+            <bs-login name="login" language="{{language}}" id="login" route="{{route}}" on-login="_onLogin" on-signup="_onSignup"></bs-login>
+            <bs-app name="app" language="{{language}}" resources ="{{resources}}" user="{{user}}" on-redirect-login="_redirectLogin"></bs-app>
+            <bs-forgot-password name="forgot-password" language="{{language}}" resources ="{{resources}}" on-reset-email="_onSendResetEmail"></bs-forgot-password>
+            <bs-auth-action language="{{language}}" resources ="{{resources}}" route="[[route]]" verification-message="{{verificationMessage}}" name="auth-action" on-verify-email="verifyEmail" on-reset-password="resetPassword"></bs-auth-action>
+            <bs-terms-privacy name="terms-privacy"></bs-terms-privacy>
+        </iron-pages>
+        <paper-toast id="toast" class="error" text="[[toastMsg]]"></paper-toast>
+        <paper-toast id="successToast" text="[[toastMsg]]"></paper-toast>
+        <paper-spinner-lite class="custom" active="[[showSpinner]]"></paper-spinner-lite>
+    </template>
+
+    <script>
+        class Main extends Polymer.mixinBehaviors([Polymer.AppLocalizeBehavior], Polymer.Element) {
+            static get is() {
+                return 'bs-main';
+            }
+
+            connectedCallback (){
+                super.connectedCallback();
+                this.loadResources(this.resolveUrl('locale.json'));
+            }
+            static get properties() {
+                return {
+                    page: {
+                        type: String,
+                        reflectToAttribute: true,
+                        observer: '_pageChanged',
+                    },
+                    routeData: Object,
+                    subroute: String,
+                    rootPath: String,
+                    unauthorizedPages: {
+                        type: Boolean,
+                        value: ['login', 'forgot-password','reset-password','auth-action','terms-privacy']
+                    },
+                    firebase:{
+                        type:Object,
+                        value: {
+                            apiKey: "AIzaSyCmchFDkooy8riNS9eHxDttuf8bUuwfRQc",
+                            authDomain: "bumpscout-c2d7d.firebaseapp.com",
+                            databaseURL: "https://bumpscout-c2d7d.firebaseio.com",
+                            projectId: "bumpscout-c2d7d",
+                            storageBucket: "bumpscout-c2d7d.appspot.com",
+                            messagingSenderId: "640838690975"
+                        }
+                    },
+                    user: {
+                        type: Object,
+                        notify: true,
+                        observer:'onUserChanged'
+                    },
+                    signedIn:Boolean,
+                    showSpinner: {
+                        type: Boolean,
+                        reflectToAttribute: true,
+                        value: true
+                    },
+                    toastMsg:String,
+                    verificationMessage:{
+                        type:String,
+                        notify:true
+                    },
+                    language: {
+                        value: localStorage.getItem('language')||'en',
+                        type: String,
+                        notify:true,
+                        reflectToAttribute:true
+                    },
+                    resources:Object,
+                    loggedIn: {
+                        type: Boolean,
+                        computed: 'computeLoggedIn(signedIn, statusKnown)'
+                    },
+                    signedIn: Boolean,
+                    statusKnown: Boolean,
+                    lastLogginedAt:String,
+                    getMinutes:Number
+                }
+            }
+            static get observers() {
+                return [
+                    '_routePageChanged(routeData.page)',
+                ]
+            }
+
+            async _routePageChanged(page) {
+                // Check token 
+
+                var _isUnauthrozed = this._isUnauthrozedPage(page);
+                let isValidSession = await this._checkSession();
+                if (_isUnauthrozed) {
+                    this.page = page; return;
+                } else if (isValidSession) {
+                    this.page = 'app';
+                } else {
+                    this.set('route.path', '/login');
+                    this.page = 'login';
+                }
+            }
+
+            computeLoggedIn(signedIn, statusKnown) {
+                if (signedIn && statusKnown){
+                    return true;
+                } 
+                else if(!signedIn && statusKnown) {
+                    if(this._isUnauthrozedPage(this.page)) return;
+                    this.set("route.path",'/login');
+                    localStorage.clear();
+                    return false;   
+                }
+            }
+
+            _isUnauthrozedPage(page) {
+                if (this.unauthorizedPages.indexOf(page) > -1) {
+                    localStorage.clear();
+                    return true;
+                } else return false;
+            }
+
+            _checkSession() {
+                this.checkIfPreviousToken();
+                return localStorage.getItem('token') ? true :false ;
+            }
+
+            // this only applies when user navigates in pages without refresh
+            checkIfPreviousToken(){
+                if(this.user){
+                   this.getMinutes =  parseInt((new Date().getTime() - new Date(this.user.metadata.lastSignInTime).getTime())/(1000*60))
+                   if(this.getMinutes > 58){
+                        this.user.getIdToken(true).then(function(token){
+                            if(token){
+                                localStorage.setItem('token',token);
+                            }else{
+                                localStorage.clear(); // In case no token found or invalid user.
+                            }
+                        });
+                   }
+                }
+            }
+
+            // this is on refresh
+            onUserChanged(user){
+
+                // Wait for user object once it is found set token in localstorage. 
+                if(user){ 
+                    user.getIdToken(true).then(function(token){
+                        if(token){
+                            localStorage.setItem('token',token);
+                            return true;
+                        }else{
+                            localStorage.clear(); // In case no token found or invalid user.
+                        }
+                    });
+                }else{
+                    console.log('user not found');
+                }
+            }
+
+            _pageChanged(page) {
+                // Load page import on demand. Show 404 page if fails
+                var resolvedPageUrl = this.resolveUrl(page + '.html');
+                Polymer.importHref(resolvedPageUrl, this.set('showSpinner', false), null, true);
+            }
+
+            async _onLogin(e) {
+                try {
+                    this.set('showSpinner', true)
+                    let userInfo = await this.$.auth.signInWithEmailAndPassword(e.detail.email,e.detail.password);
+                    this.user = userInfo;
+                    let token = await userInfo.getIdToken(true);
+                    localStorage.setItem('token',token);
+                    this.set('showSpinner', false);   
+                    if(userInfo.emailVerified){
+                        localStorage.setItem('uid',userInfo.uid);
+                        this.set('route.path', '/');
+                        this.$.login.resetForm();
+                    }else{
+                        this.toastMsg = this.localize('Please verify your email ID'); 
+                        this.$.toast.open();
+                    }
+                } catch (e) {
+                    this.set('showSpinner', false);   
+                    this.toastMsg = this.localize('Invalid email or password');
+                    this.$.toast.open();
+                }
+                
+            }
+
+            async _onSignup(e){
+                try {
+                    this.set('showSpinner', true)
+                    let response = await this.$.auth.createUserWithEmailAndPassword(e.detail.email,e.detail.password);
+                    let emailSent = await this.sendEmail();
+                    this.toastMsg = this.localize('An verification email email is sent');
+                    this.$.successToast.open();
+                    this.set('showSpinner', false);
+                } catch (e) {
+                    this.set('showSpinner', false);
+                    this.toastMsg = e.message;
+                    this.$.toast.open();
+                }
+            }
+
+            async sendEmail(){
+                var user = this.$.auth.user;
+                try{
+                    await user.sendEmailVerification(); 
+                    return true;
+                }catch(e){
+                    return false;    
+                }
+            }
+
+            async _onSendResetEmail(e){
+                try{
+                    this.set('showSpinner', true);
+                    let result = await this.$.auth.sendPasswordResetEmail(e.detail.email);
+                    this.toastMsg = this.localize('A reset email was sent');
+                    this.$.successToast.open();
+                    this.set('showSpinner', false);
+                }catch(e){
+                    console.log(e);
+                    this.set('showSpinner', false);
+                    this.toastMsg = this.localize('Email not found');
+                    this.$.toast.open();
+                }                
+            }
+
+            async resetPassword(e){
+                try{
+                    let code = e.detail.code;
+                    let newPassword = e.detail.password;
+                    await firebase.auth().confirmPasswordReset(code,newPassword);
+                    this.toastMsg = this.localize('Password updated successfully');
+                    this.$.successToast.open();
+                }catch(e){
+                    this.toastMsg = e.message;
+                    this.$.toast.open();
+                }
+            }
+
+            async verifyEmail(e){
+                try{
+                    let code = e.detail.code;
+                    let response = await firebase.auth().applyActionCode(code);
+                    this.toastMsg = this.localize('Email verified successfully');
+                    this.veificationMessage = 'Thank you. Email is verified';
+                    this.$.successToast.open();
+                    setTimeout(function(){
+                        window.location.href = '/login';
+                    }.bind(this),2000) ;
+                }catch(e){
+                    this.toastMsg = e.message;
+                    this.$.toast.open();
+                    setTimeout(function(){
+                        window.location.href = '/login';
+                    }.bind(this),2000) ;
+                }
+            }
+        }
+        window.customElements.define(Main.is, Main);
+    </script>
+</dom-module>
