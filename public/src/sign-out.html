@@ -1,0 +1,73 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+
+<dom-module id="bs-signout">
+    
+    <template>
+        <style>
+            :host{
+                display: block;
+                padding: 30px;
+            }
+            .warning{
+                width: 72px;
+                height: 72px;
+                color: #FFC107;
+            }
+
+            .center{
+                text-align: center;
+            }
+
+            paper-button{
+                height: 40px;
+                margin-left: 0px;
+                margin-top: 15px;
+                text-transform: none;
+            }
+
+            .confirm {
+                background: var(--default-primary-color);
+                color: white;
+                
+            }
+
+        </style>
+        <div class="center">
+            <iron-icon class="warning" icon="app-icons:warning"></iron-icon>
+            <h3 style="margin: 5px;">{{localize('Confirmation')}}</h2>
+            <p>{{localize('By Sigining out you may miss important alerts')}}</p>
+            <p>{{localize('If you are signing out due to notifications consider changing your')}} <b>{{localize('settings')}}</b></p>
+            <p style="margin-top:30px;"><b>{{localize('Are You sure you want to signout?')}}</b></p>
+            <paper-button class="confirm" raised on-tap="onLogut">{{localize('Yes')}}</paper-button>
+            <paper-button raised on-tap="onCancel"> {{localize('No')}} </paper-button>
+        </div>
+    </template>
+
+    <script>
+        class SignOut extends Polymer.mixinBehaviors([Polymer.AppLocalizeBehavior], Polymer.Element){
+            static get is (){ return 'bs-signout'}
+            static get properties(){
+                return {
+                    route:Object
+                }
+            }
+
+            onLogut(){
+                try{
+                    localStorage.clear();
+                    window.location.href='/login';
+                }catch(e){
+                    console.log(e);
+                }
+            }
+
+            onCancel(){
+                this.set('route.path','/');
+            }
+        }
+
+        window.customElements.define(SignOut.is, SignOut);
+    </script>
+    
+</dom-module>

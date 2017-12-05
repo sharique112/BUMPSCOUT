@@ -1,0 +1,312 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/app-layout/app-drawer/app-drawer.html">
+<link rel="import" href="../bower_components/app-layout/app-drawer-layout/app-drawer-layout.html">
+<link rel="import" href="../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../bower_components/app-layout/app-header-layout/app-header-layout.html">
+<link rel="import" href="../bower_components/app-layout/app-scroll-effects/app-scroll-effects.html">
+<link rel="import" href="../bower_components/app-layout/app-toolbar/app-toolbar.html">
+<link rel="import" href="../bower_components/app-route/app-location.html">
+<link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/iron-pages/iron-pages.html">
+<link rel="import" href="../bower_components/iron-selector/iron-selector.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+
+<link rel="import" href="shared-styles.html">
+<link rel="lazy-import" href="user-list.html">
+<link rel="lazy-import" href="view404.html">
+<link rel="lazy-import" href="home.html">
+<link rel="lazy-import" href="terms-privacy.html">
+<link rel="lazy-import" href="problem.html">
+<link rel="lazy-import" href="settings.html">
+<link rel="lazy-import" href="sign-out.html">
+<link rel="lazy-import" href="problem.html">	
+<dom-module id="bs-app">
+	<template>
+		<style>
+			:host {
+				--app-primary-color: #303F9F;
+				--app-secondary-color: #212121;			
+				display: block;
+			}
+
+			app-drawer-layout:not([narrow]) [drawer-toggle] {
+				display: none;
+			}
+
+			app-header {
+				color: #fff;
+				background-color: var(--app-primary-color);
+			}
+
+			app-header paper-icon-button {
+				--paper-icon-button-ink-color: white;
+			}
+
+			.drawer-list {
+				margin: 0 20px;
+			}
+
+			.drawer-list a {
+				display: block;
+				padding: 0 16px;
+				text-decoration: none;
+				color: var(--app-secondary-color);
+				line-height: 40px;
+			}
+
+			.drawer-list a.iron-selected {
+				color: black;
+				font-weight: bold;
+			}
+
+			a:focus {
+				outline: 0 !important;
+			}
+
+			app-toolbar{
+				background: var(--app-primary-color);
+			}
+
+			div[main-title][captailize]{
+				text-transform: capitalize;
+			}
+
+			div[main-title]:focus{
+				outline: 0;
+			}
+
+			@media (min-width: 768px) {
+				#toggleMenu {
+					display: none;
+				}
+			}
+		</style>
+
+		<app-location route="{{route}}" url-space-regex="^[[rootPath]]">
+		</app-location>
+
+
+
+		<app-route route="{{route}}" pattern="[[rootPath]]:page" data="{{routeData}}" tail="{{subroute}}">
+		</app-route>
+		
+		
+		<iron-ajax id='ajax' method="GET" url="[[API_URL]]/lang/[[uid]]" handle-as="json" headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}'
+		on-response="_handleResponse" on-error="errorHandler"></iron-ajax>
+		
+		
+		<app-drawer-layout fullbleed narrow="{{narrow}}">
+			<!-- Drawer content -->
+			<app-drawer id="drawer" slot="drawer" swipe-open="[[narrow]]">
+				<app-toolbar>
+					<paper-icon-button style="position:absolute;right:10px;color:white;" icon="app-icons:chevron-left" drawer-toggle></paper-icon-button>
+				</app-toolbar>
+				<iron-selector selected="[[page]]" attr-for-selected="name" class="drawer-list" role="navigation">
+					<a name="home" href="[[rootPath]]home">{{localize('Home')}}</a>
+					<a name="settings" href="[[rootPath]]settings">{{localize('Settings')}}</a>
+					<a name="user-list" href="[[rootPath]]user-list">{{localize('User list')}}</a>
+					<a name="terms-privacy" href="[[rootPath]]terms-privacy">{{localize('Terms privacy')}}</a>
+					<a name="sign-out" href="[[rootPath]]sign-out">{{localize('Sign out')}}</a>
+				</iron-selector>
+			</app-drawer>
+
+			<!-- Main content -->
+			<app-header-layout>
+				<app-header slot="header" condenses reveals="{{reveals}}" fixed="[[fixed]]" effects="waterfall">
+					<app-toolbar style="padding:0px;">
+						<paper-icon-button id="toggleMenu" icon="app-icons:[[menuIcon]]" on-tap="toggleDrawer" ></paper-icon-button>
+						<div main-title captailize style="cursor:pointer !important;pointer-events: auto;" on-tap="redirectPage"><i> <b > {{localizedTitle}} </b></i> </div>
+					</app-toolbar>
+				</app-header>
+				<iron-pages selected="[[page]]" attr-for-selected="name" selected-attribute="visible" fallback-selection="view404" role="main">
+					<bs-home resources ="{{resources}}" language="{{language}}"  route="{{route}}" reveals="{{reveals}}"  name="home"></bs-home>
+					<bs-user-list resources ="{{resources}}" language="{{language}}"  name="user-list" on-toolbar-settings="_onToolBarSettings"></bs-user-list>
+					<bs-signout resources ="{{resources}}" language="{{language}}" user="{{user}}" route="{{route}}" name="sign-out"></bs-signout>
+					<bs-settings resources ="{{resources}}" language="{{language}}"  route="{{route}}" user="{{user}}" name="settings"></bs-settings>
+					<bs-terms-privacy resources ="{{resources}}" language="{{language}}"  name="terms-privacy"></bs-terms-privacy>
+					<bs-problem resources ="{{resources}}" language="{{language}}" route="{{route}}" tail="{{subroute}}" on-toolbar-settings="_onToolBarSettings"  subroute="{{subroute}}" name="problem"></bs-problem>
+				</iron-pages>
+			</app-header-layout>
+		</app-drawer-layout>
+	</template>
+
+	<script>
+		class MyApp extends Polymer.mixinBehaviors([Polymer.AppLocalizeBehavior], Polymer.Element) {
+			
+			static get is() {
+				return 'bs-app';
+			}
+			
+			static get properties() {
+				return {
+					page: {
+						type: String,
+						reflectToAttribute: true,
+						observer: '_pageChanged',
+					},
+					API_URL:{
+                        type:String,
+                        value:window.Global.API_URL
+					},
+					token:{
+						type:String,
+						value:localStorage.getItem('token')
+					},
+					toolBarTitle:{
+						type:String,
+						value:'BUMPSCOUT',
+						notify:true,
+						observer:'_changeLocalized',
+						reflectToAttribute:true
+					},
+					fixed:{
+						type:Boolean,
+						value:false
+					},
+					reveals:{
+						type:Boolean,
+						value:true,
+						notify:true
+					},
+					routeData: Object,
+					subroute: String,
+					// This shouldn't be neccessary, but the Analyzer isn't picking up
+					// Polymer.Element#rootPath
+					rootPath: String,
+					menuIcon:{
+						type:String,
+						value:'menu'
+					},
+					capitalize:{
+						type:Boolean,
+						value:false
+					},
+					user:Object,
+					backpage:String,
+					localizedTitle:String,
+					language:{
+						type:String,
+						observer:"onChange"
+					}
+				};
+			}
+
+			static get observers() {
+				return [
+					'_routePageChanged(routeData.page)',
+				];
+			}
+
+			ready(){
+				super.ready();
+				this.uid = localStorage.getItem('uid');
+				this.$.ajax.generateRequest();
+			}
+
+			_handleResponse(e){
+				var response = e.detail.response;
+				if(response.success){
+					this.language = response.language;
+					localStorage.setItem('language',this.language);
+				}
+			}
+
+			onChange(oldVal,newVal){
+				if(oldVal==newVal) return;
+				else this._changeLocalized(this.toolBarTitle);
+			}
+
+			_changeLocalized(title){
+				if(title=='BUMPSCOUT'){
+					this.localizedTitle = 'BUMPSCOUT';
+				}else if(title){
+					title =title.replace('-',' ');
+					this.localizedTitle = this.localize(title.charAt(0).toUpperCase()+ title.substr(1));
+				}
+			}
+
+			redirectPage(){
+				var bool = this._checkSubRoute();
+				if(bool) return;
+ 				if( this.menuIcon=='arrow-back') {
+					this.set('route.path','home');
+					this.menuIcon ='menu';
+				}
+			}
+
+			_routePageChanged(page) {
+				// If no page was found in the route data, page will be an empty string.
+				// Default to 'view1' in that case.
+				this.page = page || 'home';
+
+				if(this.page=='sign-out' || this.page=='settings'||this.page=="user-list"|| this.page=='problem' || this.page=='terms-privacy'){
+					this.menuIcon ='arrow-back';
+					if(this.page=='problem') return;
+					 this.toolBarTitle = this.page;
+					
+				}else{
+					this.menuIcon='menu';
+					this.toolBarTitle ='BUMPSCOUT';
+				}
+				
+				// if(this.page=='home'||this.page=="user-list") this.fixed = true; else this.fixed = false;
+
+				// Close a non-persistent drawer when the page & route are changed.
+				if (!this.$.drawer.persistent) {
+					this.$.drawer.close();
+				}
+			}
+
+			_pageChanged(page) {
+				// Load page import on demand. Show 404 page if fails
+				var resolvedPageUrl = this.resolveUrl(page + '.html');
+				Polymer.importHref(
+					resolvedPageUrl,
+					null,
+					this._showPage404.bind(this),
+					true);
+			}
+
+			_onToolBarSettings(e){
+				this.toolBarTitle = e.detail.title;
+				this.menuIcon ='arrow-back';
+				this.backpage = e.detail.backpage;
+			}
+			
+			toggleDrawer(){				
+				var bool = this._checkSubRoute();
+				if(bool) return;
+ 				if( this.menuIcon=='arrow-back') {
+					this.set('route.path','home');
+					this.menuIcon ='menu';
+				}
+				else this.$.drawer.toggle();
+			}
+			
+			_checkSubRoute(){
+				if(this.backpage && this.subroute.path){
+					this.set('route.path',this.backpage);
+					this.backpage ='';
+					return true;	
+				}else return false;
+			}
+
+			_showPage404() {
+				this.page = 'view404';
+			}
+		}
+
+		window.customElements.define(MyApp.is, MyApp);
+	</script>
+</dom-module>

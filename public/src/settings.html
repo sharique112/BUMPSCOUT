@@ -1,0 +1,408 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="shared-styles.html">
+<link rel="import" href="../bower_components/app-localize-behavior/app-localize-behavior.html">
+<link rel="import" href="../bower_components/paper-countries/paper-countries.html">
+<link rel="import" href="../bower_components/iron-form/iron-form.html">
+<link rel="import" href="../bower_components/paper-fab/paper-fab.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../bower_components/paper-timezone/paper-timezone.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../bower_components/paper-listbox/paper-listbox.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-storage-ref.html">
+
+<dom-module id="bs-settings">
+    <template>
+        <style include="shared-styles">
+             :host {
+                display: block;
+                padding: 30px;
+            }
+
+            .avatar-container {
+				position: relative;
+				border: 2px solid #3DACE3;
+				border-radius: 50%;
+				height: 150px;
+				padding: 2px;
+				width: 150px;
+				margin: 20px auto;
+			}
+
+            #imgPlaceholder {
+				width: 150px;
+				border-radius: 50%;
+				height: 150px;
+			}
+
+            #camera-fab {
+				position: absolute;
+				bottom: 2px;
+				right: 6px;
+                background: #90CAF9;
+			}
+
+            paper-button {
+                height: 40px;
+                width: 100px;
+                text-transform: none;
+                margin: 0px;
+                top: 10px;
+                margin-right: 10px;
+                color: white;
+            }
+
+            .dialog {
+                display: inline;
+                margin-right:0px;
+                color: white;
+            }
+
+            .add{
+                background:var(--default-primary-color);
+                
+            }
+            .cancel{
+                color: #9E9E9E;
+            }
+
+            paper-dropdown-menu{
+                width:100%;
+            }
+
+            .actions{
+                text-align: right;
+                margin-top: 12px;
+            }
+
+            paper-spinner-lite.custom{
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                z-index: 1000;
+                width: 50px;
+                height: 50px;
+                margin-left: -25px;
+                margin-top: -25px;
+            }
+
+        </style>
+        
+        <firebase-storage-ref id="storageRef" metadata="{{metadata}}" storage-uri="{{gsUri}}" download-url="{{downloadUrl}}">
+        </firebase-storage-ref>
+        
+        <iron-ajax auto url="[[API_URL]]/profile/[[uid]]" loading="{{loading}}" handle-as="json" on-response="_handleGetInfo"  headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}'></iron-ajax>
+        
+        <iron-ajax 
+            id="profileUpdate"            
+             url="[[API_URL]]/updateProfile"
+             handle-as="json"
+             method="POST"
+             headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}'
+             on-response="_handlePostResponse" loading="{{loading}}">
+        </iron-ajax>
+        
+        <iron-form id="profileForm">
+            <form>
+                <div class="avatar-container">
+                    <img id="imgPlaceholder" src="{{userProfile.photoURL}}" alt="avatar">
+                    <paper-fab mini id="camera-fab" on-click="_cameraClick" icon="app-icons:camera" role="button" tabindex="0"></paper-fab>
+                    <input type="file" id="fileInput" on-change="_fileChange" hidden accept="[[acceptedFileTypes]]">
+                </div> 
+                <paper-input name="displayName" value="{{userProfile.displayName}}" required auto-validate error-message="{{localize('Please enter Display Name')}}" label="{{localize('Display Name')}}" type="text"></paper-input>
+                <paper-input name="email" id="email" value="[[user.email]]" required auto-validate label="{{localize('Email')}}" type="email" error-message="{{localize('Enter valid email')}}" ></paper-input>
+                <paper-input name="password" readonly on-tap="openDialog" id="pwd" minlength="8" auto-validate label="{{localize('Click​ ​to​ ​change​ ​password...')}}" type="password"></paper-input>
+                <paper-countries name="country" label="{{localize('Country')}}" country="{{userProfile.country}}" error-message="{{localize('Please Select valid country')}}" placeholder=""></paper-countries>
+                <paper-input name="region" value="{{userProfile.region}}" label="{{localize('Region')}}"></paper-input>
+                <paper-timezone name="timezone" label={{localize('Timezone')}} id="tz"></paper-timezone>
+                <paper-dropdown-menu name="language" label="{{localize('Language')}}">
+                    <paper-listbox slot="dropdown-content" attr-for-selected="value" on-iron-activate="_changeLanguageSettings" selected="{{userProfile.language.code}}">
+                        <template is="dom-repeat" id="roles" items="[[languages]]" as="item" >
+                                <paper-item value="[[item.code]]">[[item.value]]</paper-item>
+                        </template>
+                    </paper-listbox>
+                  </paper-dropdown-menu>
+                <paper-input label="{{localize('Date Joined')}}"  disabled value="[[_converDate()]]" ></paper-input>
+                <paper-button class="add" raised on-tap="_updateProfileInfo">{{localize('Save')}}</paper-button> 
+                <paper-button class="cancel" on-tap="cancel" raised>{{localize('Cancel')}}</paper-button>
+            </form>
+        </iron-form>
+
+        
+        <paper-dialog id="pwdDialog">
+            <h2>{{localize('Set Your Password')}}</h2>
+            <hr>
+            <iron-form id="passwordUpdate" style="margin-top: -10px;">
+                <form>
+                    <paper-input name="new_password" id="new_password" minlength="8" value="{{form.new_password}}" label="{{localize('New Password')}}" error-message="{{localize('Enter your new password')}}"
+                        type="password" required auto-validate>
+                    </paper-input>
+                    <paper-input name="confirm_password"  id="confirm_password" minlength="8"  value="{{form.confirm_password}}" label="{{localize('Confirm Password')}}" error-message="{{localize('Passwords are not matching')}}"
+                        type="password" required auto-validate>
+                    </paper-input>
+                    <div class="actions" >
+                        <paper-button  class="add dialog" raised on-tap="_updatePassword">{{localize('Save')}}</paper-button> 
+                        <paper-button  class="cancel dialog" on-tap="close" raised>{{localize('Cancel')}}</paper-button>
+                    </div>
+                </form>
+            </iron-form>
+        </paper-dialog>
+        
+        <paper-spinner-lite class="custom" active="{{loading}}"></paper-spinner-lite>
+    </template>
+
+    <script>
+        class Settings extends Polymer.mixinBehaviors([Polymer.AppLocalizeBehavior], Polymer.Element) {
+            static get is() {
+                return 'bs-settings';
+            }
+            static get properties(){
+                return{
+                    API_URL:{
+                        type:String,
+                        value:window.Global.API_URL
+                    },
+                    acceptedFileTypes: {
+						type: Array,
+						value: ['image/jpg','image/jpeg','image/png','image/bmp']
+                    },
+                    userProfile:{
+                        type:Object,
+                        value:{
+                            photoURL:'/images/user-placeholder.jpg',
+                            language:{
+                                code:'en',
+                                value:'English'
+                            }
+                        },
+                        notify:true,
+                        reflectToAttribute:true
+                    },
+                    languages:{
+                        type:Object,
+                        value:[{code:'en',value:'English'},{code:'fr',value:'French'},{code:'nl',value:'Dutch'},{code:'de',value:'German'}]
+                    },
+                    gsUri:{
+                       type:String,
+                       value:"gs://bumpscout-c2d7d.appspot.com" 
+                    },
+                    path:{
+                        type:String,
+                        value:"/users",
+                        notify:true
+                    },
+                    fileObj:Object,
+                    metadata:{
+                        type:Object,
+                        value:{
+                            contentType: 'image/jpeg'
+                        }
+                    },
+                    user:Object,
+                    token:{
+                        type:String,
+                        value:localStorage.getItem('token')
+                    },
+                    uid:{
+                        type:String,
+                        value:localStorage.getItem('uid')
+                    },
+                    isImageUpload:{
+                        type:Boolean,
+                        value:false
+                    },
+                    form:{
+                        type:Object,
+                        value:{},
+                        reflectionToAttribute:true
+                    },
+                    loading:{
+                        type:Boolean
+                    },
+                    language:{
+                        type:String,
+                        notify:true
+                    }
+                }
+            }
+
+            openDialog(){
+                this.$.pwdDialog.open();
+            }
+
+            _changeLanguageSettings(e){
+                this.language = e.detail.selected;
+                this.userProfile.language = {
+                    code: e.detail.selected,
+                    value:e.detail.item.textContent
+                };
+            }
+
+            async _updatePassword(){
+                var form = this.$.passwordUpdate;
+                if(form.validate()){
+                    if(this.form.new_password == this.form.confirm_password){
+                        this.loading = true;
+                        let bool = await this.updateUserPassword(this.form.new_password);
+                        this.loading = false;
+                        this.close();
+                    }else{
+                        this.$.confirm_password.invalid = true;
+                    }
+                }
+            }
+
+            cancel(){
+                this.set('route.path','/home');
+            }
+
+            close(){
+                this.$.passwordUpdate.reset();
+                this.$.pwdDialog.close();
+            }
+
+            _cameraClick() {
+				var elem = this.$.fileInput;
+				if (elem && document.createEvent) {
+					var evt = document.createEvent('MouseEvents');
+					evt.initEvent('click', true, false);
+					elem.dispatchEvent(evt);
+				}
+            }
+        
+			_fileChange(e) {
+				this._hideDelete = true;
+				var files = e.target.files;
+                if (files.length) {
+                    this.fileObj = files[0];
+					var self = this;
+					var reader = new FileReader();
+					reader.onload = function (evt) {
+						self.$.imgPlaceholder.src = evt.target.result;
+                        self._updateImage();
+					};
+					reader.readAsDataURL(files[0]);
+				}
+            }
+
+            async _updateImage(){
+                var uid = localStorage.getItem('uid');
+                var timeStamp = new Date().getTime();                
+                var path =this.path+'/'+uid
+                var storageRef = this.$.storageRef;
+                storageRef.path = path;
+                try{
+                    let uploadTask =await storageRef.put(this.fileObj,this.metadata);
+                    if(uploadTask.downloadURL){
+                        this.$.imgPlaceholder.src = uploadTask.downloadURL;
+                        this.updateImageToDatabase(uploadTask.downloadURL);
+                    } 
+                    //Call mongodb profile update method
+                }catch(e){
+                    console.log(e);
+                }
+            }
+            
+            async _updateProfileInfo(){
+                var form = this.$.profileForm;
+                
+                try{
+                    if(form.validate()){
+                        //check email changed
+                        if(this.user.email != this.$.email.value.toLowerCase()){
+                            let bool = await this.updateUserEmail();
+                            if(!bool) return;
+                        }
+                        
+                        this.$.profileUpdate.body = this.userProfile;
+                        this.$.profileUpdate.body.timezone = this.$.tz.timezone;
+                        this.$.profileUpdate.body.uid = this.uid;
+                        this.$.profileUpdate.generateRequest();
+                    }
+                }catch(e){
+                    console.log(e);
+                }
+               
+            }
+
+            updateImageToDatabase(downloadUrl){
+                this.isImageUpload = true;
+                this.$.profileUpdate.body = {};
+                this.$.profileUpdate.body.uid = this.uid;
+                this.$.profileUpdate.body.photoURL = downloadUrl;
+                this.$.profileUpdate.generateRequest();
+            }
+
+            _handlePostResponse(e){
+                var response = e.detail.response;
+                if(response.success){
+                    var msg = this.isImageUpload ? this.localize('Profile picture saved successfully'):this.localize(e.detail.response.msg);
+                    document.getElementById('main').$.successToast.show(msg);
+                    this.isImageUpload=false;
+                }
+            }
+
+            _handleGetInfo(e){
+                var response = e.detail.response
+                if(response.success&&response.profile){
+                    this.userProfile = response.profile;
+                    if(this.userProfile.timezone) this.$.tz.timezone =response.profile.timezone;  
+                }
+            }
+
+            async updateUserEmail(){
+                try{
+                    let newEmail =  this.$.email.value.toLowerCase();
+                    let user  = await this.user.updateEmail(newEmail);
+                    return true;
+                }catch(e){
+                    var msg = e.message;//this.localize(e.detail.response.msg);
+                    document.getElementById('main').$.toast.show(msg);
+                }
+            }
+
+            
+            async updateUserPassword(newPassword){
+                try{
+                    let user  = await this.user.updatePassword(newPassword);
+                    var msg = this.localize('Password Updated Successfully');
+                    document.getElementById('main').$.successToast.show(msg);
+                }catch(e){
+                    var msg = e.message;//this.localize(e.detail.response.msg);
+                    document.getElementById('main').$.toast.show(msg);
+                }
+            }
+
+            _converDate(){
+                var userCreatedAt = this.user.metadata.creationTime;
+                var dateFormat = new Date(userCreatedAt),
+                    date = dateFormat.getDate(), 
+                    month = "January,February,March,April,May,June,July,August,September,October,November,December"
+                .split(",")[dateFormat.getMonth()]
+                function nth(d) {
+                if(d>3 && d<21) return 'th'; 
+                switch (d % 10) {
+                        case 1:  return "st";
+                        case 2:  return "nd";
+                        case 3:  return "rd";
+                        default: return "th";
+                    }
+                } 
+                return date+nth(date) +" "+month+" "+dateFormat.getFullYear();
+            }
+        }
+
+        window.customElements.define(Settings.is, Settings);
+    </script>
+</dom-module>

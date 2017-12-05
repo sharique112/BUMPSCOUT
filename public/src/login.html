@@ -1,0 +1,188 @@
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/paper-tabs/paper-tabs.html">
+<link rel="import" href="../bower_components/iron-pages/iron-pages.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../bower_components/paper-styles/element-styles/paper-material-styles.html">
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/iron-form/iron-form.html">
+
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="../bower_components/paper-checkbox/paper-checkbox.html">
+
+<dom-module id="bs-login">
+    <template>
+        <style>
+            :host {
+                display: block;
+                padding: 30px;
+            }
+
+            #logo {
+                font-size: 48px;
+                font-family: roboto;
+                font-weight: bold;
+                margin: 0px;
+            }
+
+            #subtitle {
+                display: block;
+                margin: -15px;
+                font-weight: bold;
+                color: #BDBDBD;
+            }
+
+            iron-icon {
+                padding: 5px;
+                margin-left: -5px;
+                color: #bdbdbd;
+            }
+
+            .center {
+                text-align: center;
+            }
+
+            paper-tabs {
+                margin-top: 50px;
+                --paper-tabs-selection-bar: {
+                    border-bottom: 2px solid #303F9F !important;
+                }
+            }
+
+            paper-button {
+                background: var(--default-primary-color);
+                color: white;
+                height: 40px;
+                margin-left: 0px;
+                margin-top: 15px;
+                width: 100%;
+                text-transform: none;
+            }
+
+        </style>
+      
+        <div style="text-align: center;text-align: center;margin-top: 40px;">
+            <span id="logo">
+                <i>BUMPSCOUT</i>
+            </span>
+            <span id="subtitle">Problem Solving App</span>
+        </div>
+
+        <paper-tabs selected="{{selected}}" attr-for-selected="name">
+            <paper-tab name="login">{{localize('Sign-In')}}</paper-tab>
+            <paper-tab name="register">{{localize('Register')}}</paper-tab>
+        </paper-tabs>
+
+        <iron-pages selected="{{selected}}" attr-for-selected="id">
+            <div id="login">
+                <iron-form id="signInForm">
+                    <form>
+                        <paper-input name="email" id="input" value="{{form.email}}" label="{{localize('Email')}}" error-message="{{localize('Enter valid email')}}" type="email"
+                            required auto-validate>
+                            <iron-icon icon="app-icons:mail" slot="prefix"></iron-icon>
+                        </paper-input>
+                        <paper-input name="password" id="pwd" value="{{form.password}}"  on-keydown="_checkForEnter" label="{{localize('Password')}}" error-message="{{localize('Password is required')}}"
+                            type="password" required auto-validate>
+                            <iron-icon icon="app-icons:lock" slot="prefix"></iron-icon>
+                        </paper-input>
+                    </form>
+                </iron-form>
+                <paper-button class="login" raised on-tap="signIn">{{localize('Sign-In')}}</paper-button>
+                <div class="center" style="margin-top:10px;">
+                    <a style="text-decoration: none;" href="/forgot-password">{{localize('forgotlink')}} ?</a>
+                </div>
+            </div>
+            <div id="register">
+
+                <iron-form id="signUpForm">
+                    <form>
+                        <paper-input name="email" id="input" value="{{signUpData.email}}" label="{{localize('Email')}}" error-message="{{localize('Enter valid email')}}" type="email"
+                            required auto-validate>
+                            <iron-icon icon="app-icons:mail" slot="prefix"></iron-icon>
+                        </paper-input>
+                        <paper-input name="password" id="pwd" value="{{signUpData.password}}" minlength="8"  on-keydown="_checkForEnter" label="{{localize('Password')}}" error-message="{{localize('Min 8 characters password is required')}}"
+                            type="password" required auto-validate>
+                            <iron-icon icon="app-icons:lock" slot="prefix"></iron-icon>
+                        </paper-input>
+                    </form>
+                    <paper-button raised on-tap="onSignUp">{{localize('Register')}}</paper-button>
+                    <div>
+                        <paper-checkbox id="checkbox" style="margin-top: 20px;">{{localize('I agree to the')}} <a style="text-decoration: none;" href="/terms-privacy">{{localize('terms & conditions')}}</a></paper-checkbox>
+                    </div>
+                </iron-form>
+            </div>
+        </iron-pages>
+       
+
+    </template>
+
+    <script>
+        class Login extends Polymer.mixinBehaviors([Polymer.AppLocalizeBehavior], Polymer.Element) {
+            constructor() {
+                super();
+            }
+            connectedCallback (){
+                super.connectedCallback();
+                this.loadResources(this.resolveUrl('locale.json'));
+            }
+            static get is() {
+                return 'bs-login';
+            }
+            static get properties() {
+                return {
+                    selected: {
+                        type: String,
+                        value: 'login'
+                    },
+                    route:Object,
+                    form:{
+                        type: Object,
+                        notify: true,
+                        value:{}
+                    },
+                    errorMsg:String,
+                    signUpData:{
+                        type: Object,
+                        notify: true,
+                        value:{}
+                    }
+                }
+            }
+
+            _checkForEnter(e) {
+                if (e.keyCode === 13) {
+                    this.selected== 'login' ? this.signIn() : this.singUp();
+                }
+            }
+
+            signIn(){
+                var form = this.$.signInForm;
+                if (form.validate()) {
+                    this.dispatchEvent(new CustomEvent('login', {
+                        detail: {email: this.form.email,password:this.form.password}, 
+                        bubbles: true, 
+                        composed: true
+                    }));
+                }
+            }
+
+            onSignUp(){
+                var form = this.$.signUpForm;
+                var checked = this.$.checkbox.checked; 
+                if (form.validate()&&checked) {
+                    this.dispatchEvent(new CustomEvent('signup', {
+                        detail: {email: this.signUpData.email,password:this.signUpData.password}, 
+                        bubbles: true, 
+                        composed: true
+                    }));
+                }
+            }
+
+            resetForm(){
+                this.form = {};
+                this.signUpForm = {};
+            }           
+        }
+        window.customElements.define(Login.is, Login);
+    </script>
+</dom-module>

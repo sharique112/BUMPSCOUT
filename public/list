@@ -1,0 +1,26 @@
+Authenemail/password
+
+
+Profile
+uid/
+
+
+
+{
+
+}
+
+
+/api
+
+/api/list
+
+list/all (Usertokentoken, uid);
+
+
+ifauhth inside auth.ts
+
+
+${ApiUrl}/authenticated/list
+
+app.get(/list)
