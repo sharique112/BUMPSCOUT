@@ -1,0 +1,418 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../../../bower_components/iron-form/iron-form.html">
+<link rel="import" href="../../../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../../../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../../../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../../../bower_components/paper-input/paper-textarea.html">
+<link rel="import" href="../../../bower_components/paper-radio-group/paper-radio-group.html">
+<link rel="import" href="../../../bower_components/paper-radio-button/paper-radio-button.html">
+<link rel="import" href="../../../bower_components/paper-checkbox/paper-checkbox.html">
+<link rel="import" href="../../../bower_components/iron-ajax/iron-ajax.html">
+<dom-module id="bs-problem">
+    <template>
+        <style include="shared-styles">
+            :host {
+                display: block;
+                padding: 20px;
+            }
+
+            .no-underline {
+                font-size: 16px;
+                padding: 0 1.25rem;
+                margin-bottom: .75rem;
+                border-radius: .142857143em;
+                border: 1px solid #dbe2e8;
+                color: #2e3d49;
+                box-shadow: 0 0.25em 0.5em 0 rgba(46, 61, 73, .12);
+                --paper-input-container-underline: {
+                    display: none;
+                }
+                ;
+                --paper-input-container-underline-focus: {
+                    display: none;
+                }
+                ;
+                --paper-input-container-underline-disabled: {
+                    display: none;
+                }
+                ;
+            }
+
+            textarea {
+                height: 75px;
+                font-family: "Roboto";
+                padding: 1rem;
+            }
+
+            .padding_left {
+                padding-left: 12px;
+            }
+
+            paper-radio-button {
+                display: block;
+            }
+
+            paper-button {
+                height: 40px;
+                width: 100px;
+                text-transform: none;
+                margin: 0px;
+                top: 10px;
+                margin-right: 10px;
+                color: white;
+            }
+
+            .add {
+                background: var(--default-primary-color);
+            }
+
+            .cancel {
+                color: #9E9E9E;
+            }
+
+            paper-radio-button>span {
+                font-size: 12px;
+                margin-left: 5px;
+            }
+
+            p.note {
+                font-size: 12px;
+                text-align: center;
+                margin-top: -15px;
+            }
+
+            paper-spinner-lite.custom {
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                z-index: 1000;
+                width: 50px;
+                height: 50px;
+                margin-left: -25px;
+                margin-top: -25px;
+            }
+
+            .time {
+                border: solid 1px #BDBDBD;
+                width: inherit;
+                margin: 10px -20px;
+                padding: 0 10px;
+                font-size: 12px;
+            }
+
+            .time>p {
+                margin: 5px 0px;
+            }
+
+            paper-radio-group:focus {
+                outline: 0;
+            }
+        </style>
+        <app-location route="{{route}}" url-space-regex="^[[rootPath]]"> </app-location>
+        <app-route route="{{route}}" pattern="/problem/add" active="{{addActive}}"></app-route>
+        <app-route route="{{route}}" pattern="/problem/info/:problemId" active="{{infoActive}}" data="{{routeData}}"></app-route>
+        <!-- <app-route route="{{route}}" pattern="/problem/info/:problemId" active="{{infoActive}}" data="{{routeData}}"></app-route> -->
+        <iron-ajax id='addOrUpdateProblem' method="POST" url="[[API_URL]]/problem" handle-as="json" headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}'
+            on-response="_handleProblemAddResponse" on-error="errorHandler" loading="{{loading}}"></iron-ajax>
+        <iron-ajax id='getProblem' method="GET" url="[[API_URL]]/problem/[[routeData.problemId]]" handle-as="json"
+            headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}' on-response="_handleGetProblem"
+            on-error="errorHandler" loading="{{loading}}"></iron-ajax>
+        <div>
+            <iron-form id="problemForm">
+                <form>
+                    <p class="note" hidden="{{infoActive}}">{{localize('Note')}} : {{localize('All problems are visible to everyone on the network.')}} {{localize('Private
+                        problems will be introduced in later phases')}}</p>
+                    <paper-icon-button style="float: right;margin-top: -20px;margin-right: -8px;"
+                        hidden$="[[isHidden]]" id="share" icon="app-icons:share" alt="share problem!" on-tap="shareProblem"></paper-icon-button>
+                    <span>{{localize('Title')}}</span>
+                    <paper-input id="title" readonly="{{readonly}}" class="no-underline" required
+                        auto-validate value="{{problem.title}}" no-label-float label="{{localize('Title')}}"></paper-input>
+                    <span>{{localize('Description')}}</span>
+                    <paper-textarea readonly="{{readonly}}" id="desc" class="no-underline"
+                        value="{{problem.description}}" required auto-validate no-label-float label="{{localize(label)}}" rows="3"></paper-textarea>
+                    <h5 style="margin:0px;">{{localize('Problem Type')}}</h5>
+                    <div>
+                        <paper-radio-group selected="{{problem.type}}" label="Problem Type">
+                            <paper-radio-button disabled="{{readonly}}" name="individual">{{localize('Individual')}}
+                                <span> ({{localize('health')}} & {{localize('well-being')}})</span>
+                            </paper-radio-button>
+                            <paper-radio-button disabled="{{readonly}}" name="local">{{localize('Local')}}
+                                <span>({{localize('local community')}}, {{localize('crime')}}, {{localize('traffic')}}, {{localize('etc')}})</span>
+                            </paper-radio-button>
+                            <paper-radio-button disabled="{{readonly}}" name="national">{{localize('National')}}
+                                <span>({{localize('legal')}}, {{localize('political')}}, {{localize('economics')}}, {{localize('etc')}})</span>
+                            </paper-radio-button>
+                            <paper-radio-button disabled="{{readonly}}" name="global">{{localize('Global')}}
+                                <span> ({{localize('environmental')}}, {{localize('affects everyone')}} )</span>
+                            </paper-radio-button>
+                        </paper-radio-group>
+                    </div>
+                    <div>
+                        <paper-icon-button disabled="{{readonly}}" id="favourite" icon="app-icons:[[favIcon]]" style="color:#ef9a9a;"
+                            alt="favourite this!" on-tap="makeFavourite"></paper-icon-button>{{localize('Tap to add to myBumps list')}} </div>
+                    <div id="time" hidden="{{loading}}"
+                        class="time">
+                        <p hidden="{{loading}}">
+                            <b> Created: </b> [[_converDate(problem.createdAt)]] [[_checkUser(createdBy)]]</p>
+                        <p hidden="{{loading}}">
+                            <b> Updated: </b> [[_getFromNow(problem.updatedAt)]] [[_checkUser(updatedBy)]]</p>
+                    </div>
+                    <paper-button class="add" raised on-tap="primaryClick">{{localize(primaryTitle)}}</paper-button>
+                    <paper-button class="cancel" on-tap="secondaryClick" raised>{{localize(secondaryTitle)}}</paper-button>
+                </form>
+            </iron-form>
+        </div>
+        <paper-spinner-lite class="custom" active="{{loading}}"></paper-spinner-lite>
+    </template>
+    <script>
+        class Problem extends Polymer.mixinBehaviors([Polymer.AppLocalizeBehavior], Polymer.Element) {
+            static get is() {
+                return 'bs-problem';
+            }
+            static get properties() {
+                return {
+                    problem: {
+                        type: Object,
+                        value: {
+                            type: 'individual'
+                        },
+                        notify: true
+                    },
+                    API_URL: {
+                        type: String,
+                        value: window.Global.API_URL
+                    },
+                    token: {
+                        type: String,
+                        value: localStorage.getItem('token')
+                    },
+                    uid: {
+                        type: String,
+                        value: localStorage.getItem('uid')
+                    },
+                    route: Object,
+                    subroute: String,
+                    primaryTitle: String,
+                    infoActive: Boolean,
+                    addActive: Boolean,
+                    problemId: String,
+                    label: {
+                        type: String,
+                        value: 'Description'
+                    },
+                    favIcon: {
+                        type: String,
+                        value: 'favorite-border'
+                    },
+                    isFavourite: {
+                        type: Boolean,
+                        value: false
+                    },
+                    loading: {
+                        type: Boolean,
+                        value: true
+                    },
+                    secondaryTitle: String,
+                    updatedBy: String,
+                    createdBy: String,
+                    readonly: {
+                        type: Boolean,
+                        value: true
+                    },
+                    isHidden: {
+                        type: Boolean,
+                        value: false
+                    }
+                }
+            }
+
+
+            static get observers() {
+                return [
+                    '_routePageChanged(addActive, infoActive)',
+                ];
+            }
+
+
+
+            _routePageChanged(addActive, infoActive) {
+                if (infoActive) {
+                    this.readonly = true;
+                    this.$.time.style.display = 'block';
+                    this.isHidden = false;
+                    this.$.getProblem.generateRequest();
+                    this.setTitle('Problem Info');
+                    this.primaryTitle = 'OK';
+                    this.secondaryTitle = 'Edit'
+                }
+                if (addActive) {
+                    this.isHidden = true;
+                    this.$.time.style.display = 'none';
+                    this.loading = false;
+                    this.setTitle('Add Problem');
+                    this.resetForm();
+                    this.primaryTitle = 'Add';
+                    this.secondaryTitle = 'Cancel'
+                    this.readonly = false;
+                }
+            }
+
+            save() {
+                var form = this.$.problemForm;
+                if (form.validate()) {
+                    this.$.addOrUpdateProblem.body = this.problem;
+                    if (this.infoActive && !this.readonly) {
+                        this.$.addOrUpdateProblem.body.editedBy = this.uid;
+                        this.$.addOrUpdateProblem.body.isFavourite = this.isFavourite;
+                    } else if (this.addActive) {
+                        this.$.addOrUpdateProblem.body.uid = this.uid;
+                        this.$.addOrUpdateProblem.body.isFavourite = this.isFavourite;
+                    }
+                    this.$.addOrUpdateProblem.generateRequest();
+                }
+            }
+
+
+            primaryClick() {
+                if (this.infoActive && !this.readonly) {
+                    this.save();
+                } else if (this.infoActive && this.readonly) {
+                    this.set('route.path', '/problems');
+                } else if (this.addActive) {
+                    this.save();
+                }
+            }
+
+            secondaryClick() {
+                if (this.infoActive && this.readonly) {
+                    this.setTitle('Edit Problem');
+                    this.$.time.style.display = 'none';
+                    this.isHidden = true;
+                    this.$.time.hidden = true;
+                    this.readonly = false;
+                    this.primaryTitle = 'Save';
+                    this.secondaryTitle = 'Cancel'
+                    return;
+                }
+                if (this.infoActive && !this.readonly) {
+                    this.setTitle('Problem Info');
+                    this.$.time.hidden = false;
+                    this.$.time.style.display = 'block';
+                    this.isHidden = false;
+                    this.readonly = true;
+                    this.primaryTitle = 'OK';
+                    this.secondaryTitle = 'Edit'
+                    return;
+                }
+
+                if (this.addActive) {
+                    this.set('route.path', '/problems');
+                }
+            }
+
+            shareProblem() {
+                if (navigator.share && this.problem) {
+                    navigator.share({
+                        title: this.problem.title,
+                        text: this.problem.description,
+                        url: 'https://bumpscout-c2d7d.firebaseapp.com/problem/info/' + this.problem._id,
+                    })
+                        .then(() => console.log('Successful share'))
+                        .catch((error) => console.log('Error sharing', error));
+                } else {
+                    document.location.href = "mailto:?subject=Bump Scout Problem &body=Solve this problem " + " https://bumpscout-c2d7d.firebaseapp.com/problem/info/" + this.problem._id + "  BUMSCOUPT- Problem Solving App";
+                }
+            }
+
+            _handleProblemAddResponse(e) {
+                if (e.detail.response.success) {
+                    var msg = this.localize(e.detail.response.msg);
+                    document.getElementById('main').$.successToast.show(msg);
+                    setTimeout(function () {
+                        this.set('route.path', 'problems');
+                    }.bind(this), 2000)
+                }
+            }
+
+            resetForm() {
+                this.problem = {};
+                this.label = 'Description'
+                this.set('problem.type', 'individual');
+                this.favIcon = 'favorite-border';
+            }
+
+            _handleGetProblem(e) {
+                if (e.detail.response.success)
+                    this.problem = e.detail.response.problem;
+                this.createdBy = e.detail.response.createdBy;
+                this.updatedBy = e.detail.response.updatedBy;
+                this.favIcon = this._getFavIcon(this.problem);
+                this.label = '';
+                this.loading = this.hidden = false;
+            }
+
+            _getFavIcon(item) {
+                return item.favourite.indexOf(this.uid) > -1 ? 'favorite' : 'favorite-border'
+            }
+
+            cancel() {
+                this.set('route.path', 'problems');
+            }
+
+            makeFavourite() {
+                if (this.favIcon == 'favorite-border') {
+                    this.favIcon = 'favorite';
+                    this.isFavourite = true;
+                } else {
+                    this.isFavourite = false;
+                    this.favIcon = 'favorite-border';
+                }
+            }
+
+            _converDate(createdAt) {
+                var dateFormat = new Date(createdAt),
+                    date = dateFormat.getDate(),
+                    month = "January,February,March,April,May,June,July,August,September,October,November,December"
+                        .split(",")[dateFormat.getMonth()]
+                function nth(d) {
+                    if (d > 3 && d < 21) return 'th';
+                    switch (d % 10) {
+                        case 1: return "st";
+                        case 2: return "nd";
+                        case 3: return "rd";
+                        default: return "th";
+                    }
+                }
+                return date + nth(date) + " " + month + " " + dateFormat.getFullYear();
+            }
+
+            _checkUser(user) {
+                return user ? ('by ' + user) : '';
+            }
+
+            setTitle(title) {
+                this.dispatchEvent(new CustomEvent('toolbar-settings', {
+                    detail: {
+                        title: title
+                    },
+                    bubbles: true,
+                    composed: true
+                }));
+            }
+            _getFromNow(date) {
+                return moment().fromNow(date);
+            }
+
+        }
+
+        window.customElements.define(Problem.is, Problem);
+    </script> </dom-module>

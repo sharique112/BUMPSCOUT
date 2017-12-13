@@ -1,0 +1,111 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../../shared-styles.html">
+<link rel="import" href="../../../bower_components/paper-countries/paper-countries.html">
+<link rel="import" href="../../../bower_components/paper-input/paper-input.html">
+
+<dom-module id="bs-user">
+    <template>
+        <style include="shared-styles">
+             :host {
+                display: block;
+                padding: 30px;
+                min-height: -webkit-fill-available;
+            }
+
+            .avatar-container {
+				position: relative;
+				border: 2px solid #3DACE3;
+				border-radius: 50%;
+				height: 150px;
+				padding: 2px;
+				width: 150px;
+				margin: 20px auto;
+			}
+
+            #imgPlaceholder {
+				width: 150px;
+				border-radius: 50%;
+				height: 150px;
+			}
+
+        </style>
+        
+        <iron-ajax auto url="[[API_URL]]/profile/{{userUid}}" handle-as="json" on-response="_handleGetInfo"  headers$='{"Authorization": "Bearer [[token]]", "Content-Type": "application/json"}'></iron-ajax>
+        <div class="avatar-container">
+            <img id="imgPlaceholder" src="{{userProfile.photoURL}}" alt="avatar">
+        </div>
+        <paper-input name="displayName" readonly value="{{userProfile.displayName}}" label="Display Name" type="text"></paper-input>
+        <paper-countries name="country" readonly label="Country" country="{{userProfile.country}}" placeholder=""></paper-countries>
+        <paper-input name="region" readonly value="{{userProfile.region}}" label="Region"></paper-input>
+        <paper-input label="Date Joined" disabled value="[[createdAt]]" ></paper-input>  
+    </template>
+
+    <script>
+        class User extends Polymer.Element {
+            static get is() {
+                return 'bs-user';
+            }
+            static get properties(){
+                return{
+                    visible:Boolean,
+                    API_URL:{
+                        type:String,
+                        value:window.Global.API_URL
+                    },
+                    userProfile:{
+                        type:Object,
+                        value:{
+                            photoURL:'/images/user-placeholder.jpg'
+                        },
+                        notify:true,
+                        reflectToAttribute:true
+                    },
+                    token:{
+                        type:String,
+                        value:localStorage.getItem('token')
+                    },
+                    userUid:String,
+                    createdAt:String
+                }
+            }            
+
+            _handleGetInfo(e){
+                var response = e.detail.response
+                if(response.success){
+                    this.userProfile = response.profile;
+                    this.createdAt = this._converDate(this.userProfile.createdAt);
+                }
+            }
+
+            _converDate(createdAt){
+                var dateFormat = new Date(createdAt),
+                    date = dateFormat.getDate(), 
+                    month = "January,February,March,April,May,June,July,August,September,October,November,December"
+                .split(",")[dateFormat.getMonth()]
+                function nth(d) {
+                if(d>3 && d<21) return 'th'; 
+                switch (d % 10) {
+                        case 1:  return "st";
+                        case 2:  return "nd";
+                        case 3:  return "rd";
+                        default: return "th";
+                    }
+                } 
+                return date+nth(date) +" "+month+" "+dateFormat.getFullYear();
+            }
+
+        }
+
+        window.customElements.define(User.is, User);
+    </script>
+</dom-module>

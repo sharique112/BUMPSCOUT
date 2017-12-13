@@ -10,7 +10,6 @@
 <link rel="import" href="../bower_components/paper-spinner/paper-spinner-lite.html">
 <script src="../bower_components/moment/min/moment-with-locales.min.js"></script>
 <link rel="import" href="../bower_components/app-localize-behavior/app-localize-behavior.html">
-<link rel="import" href="shared-styles.html">
 <link rel="import" href="icons.html">
 <link rel="lazy-import" href="login.html">
 <link rel="lazy-import" href="app.html">
@@ -65,7 +64,7 @@
 
             connectedCallback (){
                 super.connectedCallback();
-                this.loadResources(this.resolveUrl('locale.json'));
+                this.loadResources(this.resolveUrl('./locale/locale.json'));
             }
             static get properties() {
                 return {
@@ -83,14 +82,7 @@
                     },
                     firebase:{
                         type:Object,
-                        value: {
-                            apiKey: "AIzaSyCmchFDkooy8riNS9eHxDttuf8bUuwfRQc",
-                            authDomain: "bumpscout-c2d7d.firebaseapp.com",
-                            databaseURL: "https://bumpscout-c2d7d.firebaseio.com",
-                            projectId: "bumpscout-c2d7d",
-                            storageBucket: "bumpscout-c2d7d.appspot.com",
-                            messagingSenderId: "640838690975"
-                        }
+                        value:window.Global.firebase    
                     },
                     user: {
                         type: Object,
@@ -281,6 +273,9 @@
                     await firebase.auth().confirmPasswordReset(code,newPassword);
                     this.toastMsg = this.localize('Password updated successfully');
                     this.$.successToast.open();
+                    setTimeout(function(){
+                        window.location.href = '/login';
+                    }.bind(this),2000) ;
                 }catch(e){
                     this.toastMsg = e.message;
                     this.$.toast.open();

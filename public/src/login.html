@@ -10,26 +10,15 @@
 <link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
 <link rel="import" href="../bower_components/paper-checkbox/paper-checkbox.html">
 
+<link rel="import" href="custom_elements/logo.html">
+<link rel="import" href="shared-styles.html">
+
 <dom-module id="bs-login">
     <template>
-        <style>
+        <style include="shared-styles">
             :host {
                 display: block;
                 padding: 30px;
-            }
-
-            #logo {
-                font-size: 48px;
-                font-family: roboto;
-                font-weight: bold;
-                margin: 0px;
-            }
-
-            #subtitle {
-                display: block;
-                margin: -15px;
-                font-weight: bold;
-                color: #BDBDBD;
             }
 
             iron-icon {
@@ -60,19 +49,13 @@
             }
 
         </style>
-      
-        <div style="text-align: center;text-align: center;margin-top: 40px;">
-            <span id="logo">
-                <i>BUMPSCOUT</i>
-            </span>
-            <span id="subtitle">Problem Solving App</span>
+        <div class="logo-container">
+            <bs-logo></bs-logo>
         </div>
-
         <paper-tabs selected="{{selected}}" attr-for-selected="name">
             <paper-tab name="login">{{localize('Sign-In')}}</paper-tab>
             <paper-tab name="register">{{localize('Register')}}</paper-tab>
         </paper-tabs>
-
         <iron-pages selected="{{selected}}" attr-for-selected="id">
             <div id="login">
                 <iron-form id="signInForm">
@@ -123,7 +106,7 @@
             }
             connectedCallback (){
                 super.connectedCallback();
-                this.loadResources(this.resolveUrl('locale.json'));
+                this.loadResources(this.resolveUrl('./locale/locale.json'));
             }
             static get is() {
                 return 'bs-login';

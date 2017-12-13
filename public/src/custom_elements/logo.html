@@ -1,0 +1,55 @@
+<link rel="import" href="../../bower_components/polymer/polymer-element.html">
+<dom-module id="bs-logo">
+
+    <template>
+        <style>
+             :host {
+                display: block;
+            }
+
+            #logo {
+                font-size: 45px;
+                font-family: roboto;
+                font-weight: bold;
+                margin: 0px;
+            }
+
+            #subtitle {
+                display: block;
+                margin: -15px;
+                font-weight: bold;
+                color: #BDBDBD;
+            }
+
+            .center{
+                text-align: center;
+            }
+        </style>
+        <div class="center">
+            <span id="logo">
+                <i>BUMPSCOUT</i>
+            </span>
+            <span id="subtitle">Problem Solving App</span>
+        </div>
+    </template>
+    <script>
+        class Logo extends Polymer.Element {
+            static get is() {
+                return 'bs-logo';
+            }
+            static get properties() {
+                return {
+                    logo: {
+                        type: String,
+                        value: 'BUMPSCOUT'
+                    },
+                    subtitle: {
+                        type: String,
+                        value: 'Problem Solving App'
+                    }
+                }
+            }
+        }
+        window.customElements.define(Logo.is, Logo);
+    </script>
+</dom-module>

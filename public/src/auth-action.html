@@ -28,13 +28,9 @@
             }
         </style>
             <template is="dom-if" if="{{isEmailVerify}}">
-                    <div style="text-align: center;text-align: center;margin-top: 40px;">
-                        <span id="logo">
-                            <i>BUMPSCOUT</i>
-                        </span>
-                        <span id="subtitle">Problem Solving App</span>
-                    </div>
-                <h1>{{verificationMessage}}</h1>
+                <div class="logo-container">
+                    <bs-logo></bs-logo>
+                </div>
             </template>
             <bs-reset-password resources ="{{resources}}" language="{{language}}" name="reset-password" on-update-password="_updatePassword" ></bs-reset-password>   
     </template>

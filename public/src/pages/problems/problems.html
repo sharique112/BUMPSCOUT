@@ -1,0 +1,58 @@
+<link rel="import" href="../../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../../../bower_components/app-route/app-route.html">
+<link rel="import" href="../../shared-styles.html">
+<link rel="lazy-import" href="problems-list.html">
+<dom-module id="bs-problems">
+    <template>
+        <style include="shared-styles">
+            :host {
+                display: block;
+            }
+        </style>
+            <!-- <app-route route="{{route}}" pattern="/problems" active=""></app-route>
+            <app-route route="{{route}}" pattern="/problem/add" active="{{addActive}}"></app-route>
+            <app-route route="{{route}}" pattern="/problem/info/:problemId" active="{{infoActive}}" data="{{routeData}}"></app-route>
+            <app-route route="{{route}}" pattern="/problems/edit" data="{{boatsEditData}}" active="{{boatsEditActive}}" tail="{{editSubRoute}}"></app-route>
+        -->
+            <iron-pages role="main" attr-for-selected="name" selected="[[page]]" selected-attribute="active">
+                <bs-problems-list resources ="{{resources}}" language="{{language}}" id="list" name="list"></bs-problems-list>
+            </iron-pages>
+    </template>
+</dom-module>
+<script>
+    class Problems extends Polymer.Element {
+        constructor() {
+            super();
+        }
+        static get is() {
+            return 'bs-problems';
+        }
+        static get properties(){
+            return {
+                page: {
+						type:String,
+                        value:'list',
+						observer:'_pageChanged'
+					},
+                listActive:{
+                    type:Boolean
+                },
+                resources:{
+                    type:Array
+                }
+            }
+        }
+
+        _pageChanged(page){
+            var resolvedPageUrl = this.resolveUrl('problems-'+ page + '.html');
+				Polymer.importHref(resolvedPageUrl,null,null,true);
+        }
+
+        ready(){
+            super.ready();
+        }
+
+    }
+
+    window.customElements.define(Problems.is, Problems);
+</script>
